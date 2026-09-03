@@ -1,0 +1,46 @@
+name: "Daily Stiebel 208906 Specs Monitor"
+
+on:
+  schedule:
+    # Täglich um 04:00 UTC (05:00 / 06:00 Uhr Lokalzeit)
+    - cron: '0 4 * * *'
+  workflow_dispatch: # Ermöglicht manuelles Auslösen über die GitHub-Weboberfläche
+
+jobs:
+  scrape-and-diff:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Erlaubt das Committen der Änderungen
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Run Scraper
+        run: python scripts/check_product.py
+
+      - name: Check for Changes and Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/stiebel_208906_specs.json
+          
+          # Nur committen, wenn sich die JSON-Datei tatsächlich geändert hat
+          if ! git diff --cached --quiet; then
+            git commit -m "Update: Neue technische Daten für Stiebel Eltron 208906"
+            git push
+            echo "CHANGED=true" >> $GITHUB_ENV
+          else
+            echo "Keine Änderungen gefunden."
+            echo "CHANGED=false" >> $GITHUB_ENV
+          fi
