@@ -1,0 +1,38 @@
+name: Tägliche iDM Website-Prüfung
+
+on:
+  schedule:
+    # Jeden Morgen um 06:00 UTC (07:00 bzw. 08:00 Uhr lokaler Zeit)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Quellcode auschecken
+        uses: actions/checkout@v4
+
+      - name: Python einrichten
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Abhängigkeiten installieren
+        run: |
+          pip install -r requirements.txt
+
+      - name: Scraper ausführen
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        run: |
+          python scraper.py
+
+      - name: Änderungen speichern (Git Commit & Push)
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add known_models.json || true
+          git commit -m "Auto-Update: known_models aktualisiert" || exit 0
+          git push
